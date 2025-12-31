@@ -1,7 +1,92 @@
 #!/usr/bin/env bun
 
-import { select } from "@inquirer/prompts";
+import { select, confirm } from "@inquirer/prompts";
 import { ExitPromptError } from "@inquirer/core";
+import * as readline from "readline";
+import meow from "meow";
+import { getAdapter, type ProcessInfo } from "./platform/index.js";
+
+export interface CliFlags {
+  ports: string | null;
+  kill: boolean;
+  force: boolean;
+  murder: boolean; // 🔪 undocumented: uses SIGKILL instead of SIGTERM
+  json: boolean;
+}
+
+const helpText = `
+  Usage
+    $ offmyport [ports] [options]
+
+  Options
+    --kill, -k    Kill matching processes (with confirmation)
+    --force, -f   Skip confirmation prompt (use with --kill)
+    --json        Output process info as JSON (no TUI)
+    --version     Show version number
+    --help        Show this help
+
+  Examples
+    $ offmyport              List all listening ports
+    $ offmyport 3000         Filter to port 3000
+    $ offmyport 80,443       Filter multiple ports
+    $ offmyport 3000-3005    Filter port range
+    $ offmyport 3000 --kill  Kill process on port 3000
+    $ offmyport 3000 -k -f   Kill without confirmation
+    $ offmyport --json       Output all ports as JSON
+`;
+
+/**
+ * Parse CLI arguments using meow.
+ * Exported for testing compatibility.
+ */
+export function parseArgs(argv: string[]): CliFlags {
+  const cli = meow(helpText, {
+    importMeta: import.meta,
+    argv: argv.slice(2), // skip 'bun' and script path
+    flags: {
+      kill: {
+        type: "boolean",
+        shortFlag: "k",
+        default: false,
+      },
+      force: {
+        type: "boolean",
+        shortFlag: "f",
+        default: false,
+      },
+      murder: {
+        type: "boolean",
+        default: false,
+      },
+      json: {
+        type: "boolean",
+        default: false,
+      },
+    },
+    autoHelp: false, // Handle manually to avoid auto-exit during tests
+    autoVersion: false, // Handle manually to avoid auto-exit during tests
+  });
+
+  // Handle --help and --version manually when running as CLI
+  if (import.meta.main) {
+    if (argv.includes("--help") || argv.includes("-h")) {
+      cli.showHelp(0);
+    }
+    if (argv.includes("--version") || argv.includes("-v")) {
+      cli.showVersion();
+    }
+  }
+
+  const murder = cli.flags.murder;
+
+  return {
+    ports: cli.input[0] ?? null,
+    kill: cli.flags.kill || murder, // --murder implies --kill
+    force: cli.flags.force || murder, // --murder implies --force
+    murder,
+    json: cli.flags.json,
+  };
+}
 
 // Calculate page size as half the terminal height (min 5, max 20)
 function getPageSize(): number {
@@ -9,133 +94,254 @@ function getPageSize(): number {
   return Math.min(20, Math.max(5, Math.floor(rows / 2)));
 }
 
-interface ProcessInfo {
-  command: string;
-  pid: number;
-  user: string;
-  port: number;
-  protocol: string;
+/**
+ * Setup keyboard listener for 'q' to quit.
+ * Returns cleanup function and AbortController for cancelling prompts.
+ */
+function setupQuitHandler(): {
+  cleanup: () => void;
+  controller: AbortController;
+} {
+  const controller = new AbortController();
+
+  // Save original raw mode state
+  const wasRaw = process.stdin.isRaw;
+
+  if (process.stdin.isTTY) {
+    readline.emitKeypressEvents(process.stdin);
+
+    const onKeypress = (char: string, key: readline.Key) => {
+      if (char === "q" || char === "Q") {
+        controller.abort();
+      }
+    };
+
+    process.stdin.on("keypress", onKeypress);
+
+    const cleanup = () => {
+      process.stdin.removeListener("keypress", onKeypress);
+    };
+
+    return { cleanup, controller };
+  }
+
+  return { cleanup: () => {}, controller };
 }
 
-function getListeningProcesses(): ProcessInfo[] {
-  const proc = Bun.spawnSync(["lsof", "-iTCP", "-sTCP:LISTEN", "-P", "-n"]);
+// JSON output format (--json flag)
+// Uses common denominator fields across macOS, Linux, and Windows
+export interface ProcessJsonOutput {
+  pid: number;
+  name: string;
+  port: number;
+  protocol: string;
+  user: string;
+  cpuPercent: number | null; // Can be null if unavailable (Windows edge cases)
+  memoryBytes: number | null; // Working set (Win) or RSS (Unix), null if unavailable
+  startTime: string | null; // ISO 8601 format, null if unavailable
+  path: string | null; // Full executable path, null if unavailable (Win 32-bit accessing 64-bit)
+  cwd: string | null; // Current working directory of the process
+}
 
-  if (proc.exitCode !== 0) {
-    console.error("Failed to run lsof. Are you on macOS/Linux?");
-    process.exit(1);
+/**
+ * Parse port specification supporting:
+ * - Single port: "80" → [80]
+ * - Comma-separated: "80,8080,3000" → [80, 8080, 3000]
+ * - Ranges (inclusive): "3000-3005" → [3000, 3001, 3002, 3003, 3004, 3005]
+ * - Mixed: "80,8080,3000-3005" → [80, 8080, 3000, 3001, 3002, 3003, 3004, 3005]
+ */
+export function parsePorts(input: string): number[] {
+  const ports: number[] = [];
+  const segments = input
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  for (const segment of segments) {
+    if (segment.includes("-")) {
+      const rangeParts = segment.split("-").map((s) => s.trim());
+      const startStr = rangeParts[0] ?? "";
+      const endStr = rangeParts[1] ?? "";
+      const start = parseInt(startStr, 10);
+      const end = parseInt(endStr, 10);
+
+      if (isNaN(start) || isNaN(end)) {
+        console.error(`Invalid port range: ${segment}`);
+        process.exit(1);
+      }
+
+      if (start > end) {
+        console.error(`Invalid port range (start > end): ${segment}`);
+        process.exit(1);
+      }
+
+      if (start < 1 || end > 65535) {
+        console.error(`Port out of range (1-65535): ${segment}`);
+        process.exit(1);
+      }
+
+      for (let p = start; p <= end; p++) {
+        ports.push(p);
+      }
+    } else {
+      const port = parseInt(segment, 10);
+
+      if (isNaN(port)) {
+        console.error(`Invalid port number: ${segment}`);
+        process.exit(1);
+      }
+
+      if (port < 1 || port > 65535) {
+        console.error(`Port out of range (1-65535): ${port}`);
+        process.exit(1);
+      }
+
+      ports.push(port);
+    }
   }
 
-  const output = proc.stdout.toString();
-  const lines = output.split("\n").slice(1); // skip header
+  // Deduplicate and sort
+  return [...new Set(ports)].sort((a, b) => a - b);
+}
 
-  const processes: ProcessInfo[] = [];
+// Platform adapter instance (lazy initialized)
+let adapter: ReturnType<typeof getAdapter> | null = null;
 
-  for (const line of lines) {
-    if (!line.trim()) continue;
-
-    const parts = line.split(/\s+/);
-    // COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
-    // node    123 user 45u IPv4 0x123  0t0      TCP  127.0.0.1:3000 (LISTEN)
-
-    const command = parts[0];
-    const pid = parseInt(parts[1], 10);
-    const user = parts[2];
-    const name = parts[8] || "";
-
-    // Extract port from name like "127.0.0.1:3000" or "*:8080"
-    const portMatch = name.match(/:(\d+)$/);
-    if (!portMatch) continue;
-
-    const port = parseInt(portMatch[1], 10);
-
-    processes.push({
-      command,
-      pid,
-      user,
-      port,
-      protocol: "TCP",
-    });
+function getPlatformAdapter() {
+  if (!adapter) {
+    adapter = getAdapter();
   }
+  return adapter;
+}
 
-  // Deduplicate by pid+port (same process may have multiple file descriptors)
-  const seen = new Set<string>();
-  return processes.filter((p) => {
-    const key = `${p.pid}:${p.port}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+/**
+ * Convert ProcessInfo to ProcessJsonOutput with extended metadata.
+ */
+function toJsonOutput(p: ProcessInfo): ProcessJsonOutput {
+  const platform = getPlatformAdapter();
+  const meta = platform.getProcessMetadata(p.pid);
+  return {
+    pid: p.pid,
+    name: p.command,
+    port: p.port,
+    protocol: p.protocol,
+    user: p.user,
+    cpuPercent: meta.cpuPercent,
+    memoryBytes: meta.memoryBytes,
+    startTime: meta.startTime,
+    path: meta.path,
+    cwd: meta.cwd,
+  };
 }
 
 async function main() {
-  const filterPort = Bun.argv[2] ? parseInt(Bun.argv[2], 10) : null;
+  const flags = parseArgs(Bun.argv);
+  const filterPorts = flags.ports ? parsePorts(flags.ports) : null;
+  const platform = getPlatformAdapter();
 
-  let processes = getListeningProcesses();
+  let processes = platform.getListeningProcesses();
 
-  if (filterPort) {
-    processes = processes.filter((p) => p.port === filterPort);
+  if (filterPorts && filterPorts.length > 0) {
+    const portSet = new Set(filterPorts);
+    processes = processes.filter((p) => portSet.has(p.port));
   }
 
   // Sort by port
   processes.sort((a, b) => a.port - b.port);
 
+  // --json mode: output JSON and exit (no TUI)
+  if (flags.json) {
+    const output = processes.map(toJsonOutput);
+    console.log(JSON.stringify(output, null, 2));
+    process.exit(0);
+  }
+
   if (processes.length === 0) {
-    if (filterPort) {
-      console.log(`No process found listening on port ${filterPort}`);
+    if (filterPorts && filterPorts.length > 0) {
+      const portDisplay =
+        filterPorts.length === 1
+          ? `port ${filterPorts[0]}`
+          : `ports ${filterPorts.join(", ")}`;
+      console.log(`No process found listening on ${portDisplay}`);
     } else {
       console.log("No listening TCP processes found");
     }
     process.exit(0);
   }
 
+  // --kill mode: kill all matching processes without interactive selection
+  if (flags.kill) {
+    await handleKillMode(processes, flags.force, flags.murder, flags.ports);
+    return;
+  }
+
+  // Interactive mode
   console.log(
-    `\nFound ${processes.length} listening process${processes.length > 1 ? "es" : ""}:\n`,
+    `\nFound ${processes.length} listening process${processes.length > 1 ? "es" : ""} \x1b[2m(q to quit)\x1b[0m\n`,
   );
 
   const pageSize = getPageSize();
+  const { cleanup, controller } = setupQuitHandler();
 
   let selectedPid: number;
   let selectedProcess: ProcessInfo;
 
   try {
     // Show the list and let user pick
-    selectedPid = await select({
-      message: "Select a process to kill:",
-      pageSize,
-      choices: processes.map((p) => ({
-        name: `Port ${p.port.toString().padStart(5)} │ ${p.command.padEnd(15)} │ PID ${p.pid} │ ${p.user}`,
-        value: p.pid,
-      })),
-    });
+    selectedPid = await select(
+      {
+        message: "Select a process to kill:",
+        pageSize,
+        choices: processes.map((p) => ({
+          name: `Port ${p.port.toString().padStart(5)} │ ${p.command.padEnd(15)} │ PID ${p.pid} │ ${p.user}`,
+          value: p.pid,
+        })),
+      },
+      { signal: controller.signal },
+    );
 
     selectedProcess = processes.find((p) => p.pid === selectedPid)!;
 
     // Ask for kill method
-    const signal = await select({
-      message: `Kill ${selectedProcess.command} (PID ${selectedPid}) with:`,
-      pageSize: 2,
-      choices: [
-        {
-          name: "SIGTERM (gentle - allows cleanup)",
-          value: "SIGTERM" as const,
-        },
-        { name: "SIGKILL (force - immediate)", value: "SIGKILL" as const },
-      ],
-    });
+    const signal = await select(
+      {
+        message: `Kill ${selectedProcess.command} (PID ${selectedPid}) with:`,
+        pageSize: 2,
+        choices: [
+          {
+            name: "SIGTERM (gentle - allows cleanup)",
+            value: "SIGTERM" as const,
+          },
+          { name: "SIGKILL (force - immediate)", value: "SIGKILL" as const },
+        ],
+      },
+      { signal: controller.signal },
+    );
 
-    process.kill(selectedPid, signal);
+    cleanup();
+
+    platform.killProcess(selectedPid, signal);
     console.log(
       `\nSent ${signal} to PID ${selectedPid} (${selectedProcess.command} on port ${selectedProcess.port})`,
     );
   } catch (err: any) {
-    if (err instanceof ExitPromptError) {
-      // User pressed Ctrl+C or ESC
+    cleanup();
+
+    const isAbortError =
+      err instanceof ExitPromptError ||
+      err.name === "AbortError" ||
+      err.code === "ABORT_ERR" ||
+      (typeof err.message === "string" &&
+        err.message.toLowerCase().includes("abort"));
+
+    if (isAbortError) {
+      // User pressed Ctrl+C, ESC, or 'q'
       console.log("\nCancelled");
       process.exit(0);
     }
     if (err.code === "EPERM") {
       console.error(
-        `\nPermission denied. Try: sudo offmyport ${filterPort || ""}`,
+        `\nPermission denied. Try: sudo offmyport ${flags.ports || ""}`,
       );
     } else if (err.code === "ESRCH") {
       console.error(`\nProcess no longer exists`);
@@ -146,11 +352,101 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  if (err instanceof ExitPromptError) {
-    console.log("\nCancelled");
-    process.exit(0);
+/**
+ * Handle --kill mode: kill all matching processes with optional confirmation.
+ */
+async function handleKillMode(
+  processes: ProcessInfo[],
+  force: boolean,
+  murder: boolean,
+  portArg: string | null,
+): Promise<void> {
+  const signal: "SIGTERM" | "SIGKILL" = murder ? "SIGKILL" : "SIGTERM";
+  const platform = getPlatformAdapter();
+
+  // Display what will be killed
+  console.log(`\nProcesses to kill (${processes.length}):\n`);
+  for (const p of processes) {
+    console.log(
+      `  Port ${p.port.toString().padStart(5)} │ ${p.command.padEnd(15)} │ PID ${p.pid} │ ${p.user}`,
+    );
   }
-  console.error(err);
-  process.exit(1);
-});
+  console.log();
+
+  // Require confirmation unless --force is set
+  if (!force) {
+    try {
+      const confirmed = await confirm({
+        message: `Kill ${processes.length} process${processes.length > 1 ? "es" : ""}?`,
+        default: false,
+      });
+
+      if (!confirmed) {
+        console.log("Cancelled");
+        process.exit(0);
+      }
+    } catch (err: any) {
+      const isAbortError =
+        err instanceof ExitPromptError ||
+        err.name === "AbortError" ||
+        err.code === "ABORT_ERR" ||
+        (typeof err.message === "string" &&
+          err.message.toLowerCase().includes("abort"));
+
+      if (isAbortError) {
+        console.log("\nCancelled");
+        process.exit(0);
+      }
+      throw err;
+    }
+  }
+
+  // Kill all processes
+  let killed = 0;
+  let failed = 0;
+
+  for (const p of processes) {
+    try {
+      platform.killProcess(p.pid, signal);
+      if (murder) {
+        console.log(
+          `Process ${p.command} \x1b[91mELIMINATED\x1b[0m! 👁️👅👁️ 🔪`,
+        );
+      } else {
+        console.log(`Killed PID ${p.pid} (${p.command} on port ${p.port})`);
+      }
+      killed++;
+    } catch (err: any) {
+      if (err.code === "EPERM") {
+        console.error(
+          `Permission denied for PID ${p.pid}. Try: sudo offmyport ${portArg || ""} --kill`,
+        );
+      } else if (err.code === "ESRCH") {
+        console.error(`PID ${p.pid} no longer exists`);
+      } else {
+        console.error(`Failed to kill PID ${p.pid}: ${err.message}`);
+      }
+      failed++;
+    }
+  }
+
+  console.log(
+    `\nKilled ${killed} process${killed !== 1 ? "es" : ""}${failed > 0 ? `, ${failed} failed` : ""}`,
+  );
+
+  if (failed > 0) {
+    process.exit(1);
+  }
+}
+
+// Only run when executed directly (not when imported for testing)
+if (import.meta.main) {
+  main().catch((err) => {
+    if (err instanceof ExitPromptError) {
+      console.log("\nCancelled");
+      process.exit(0);
+    }
+    console.error(err);
+    process.exit(1);
+  });
+}
