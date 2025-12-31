@@ -2,15 +2,15 @@
 default:
     @just --list
 
-# Run tests
+# Run tests (uses Vitest, not Bun's native test runner)
 [group: 'dev']
 test:
-    bun test
+    bun run test
 
 # Run tests in watch mode
 [group: 'dev']
 test-watch:
-    bun test --watch
+    bun run test:watch
 
 # Format code with prettier
 [group: 'dev']
@@ -61,3 +61,8 @@ ci-list:
 [group: 'release']
 deploy-web:
     cd web && vc --prod
+
+# Generate OG image for website
+[group: 'dev']
+generate-og:
+    bun scripts/generate-og-image.ts
