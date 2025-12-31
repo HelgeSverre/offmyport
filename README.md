@@ -6,15 +6,6 @@
 
 Interactive CLI tool to find and kill processes by port. No more memorizing `lsof -i :8080` or `netstat` flags.
 
-## Table of Contents
-
-- [Installation](#installation)
-- [Usage](#usage)
-- [Features](#features)
-- [CLI Reference](#cli-reference)
-- [Requirements](#requirements)
-- [License](#license)
-
 ## Installation
 
 ```bash
