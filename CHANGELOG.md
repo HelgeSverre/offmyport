@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2025-12-31
+
+### Added
+
+- GitHub Actions workflows for CI and automated releases
+- Comprehensive unit tests for CLI argument and port parsing
+- Development tooling with vitest test runner
+- Claude Code release command for streamlined releases
+
+### Changed
+
+- Refactored CLI to use meow for argument parsing
+- Improved cross-platform support with dedicated Unix and Windows adapters
+
+## [1.1.0] - 2025-12-31
+
+### Changed
+
+- Internal refactoring and code organization
+
 ## [1.0.0] - 2025-12-31
 
 ### Added
