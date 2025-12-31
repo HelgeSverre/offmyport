@@ -4,6 +4,45 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>offmyport - Get Off My Port!</title>
+
+    <!-- SEO Meta Tags -->
+    <meta
+      name="description"
+      content="Interactive CLI tool to find and kill processes by port. No more memorizing lsof commands. Just type offmyport and stab that process right in its PID."
+    />
+    <meta
+      name="keywords"
+      content="cli, port, process, kill, lsof, netstat, terminal, devtools, bun, npm"
+    />
+    <meta name="author" content="Helge Sverre" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://offmyport.dev" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://offmyport.dev" />
+    <meta property="og:title" content="offmyport - Get Off My Port!" />
+    <meta
+      property="og:description"
+      content="Interactive CLI tool to find and kill processes by port. No more memorizing lsof commands."
+    />
+    <meta property="og:image" content="https://offmyport.dev/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://offmyport.dev" />
+    <meta name="twitter:title" content="offmyport - Get Off My Port!" />
+    <meta
+      name="twitter:description"
+      content="Interactive CLI tool to find and kill processes by port. No more memorizing lsof commands."
+    />
+    <meta name="twitter:image" content="https://offmyport.dev/og-image.png" />
+
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#0a0a0a" />
+
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔪</text></svg>"
@@ -519,8 +558,15 @@
       }
 
       @keyframes pulse-blood {
-        0%, 100% { text-shadow: 0 0 10px #ff0000; }
-        50% { text-shadow: 0 0 20px #ff0000, 0 0 30px #ff0000; }
+        0%,
+        100% {
+          text-shadow: 0 0 10px #ff0000;
+        }
+        50% {
+          text-shadow:
+            0 0 20px #ff0000,
+            0 0 30px #ff0000;
+        }
       }
 
       .murder-mode body {
@@ -528,10 +574,21 @@
       }
 
       @keyframes murder-shake {
-        0%, 100% { transform: translate(0); filter: hue-rotate(0deg); }
-        25% { transform: translate(-2px, 2px); }
-        50% { transform: translate(2px, -2px); filter: hue-rotate(180deg); }
-        75% { transform: translate(-2px, -2px); }
+        0%,
+        100% {
+          transform: translate(0);
+          filter: hue-rotate(0deg);
+        }
+        25% {
+          transform: translate(-2px, 2px);
+        }
+        50% {
+          transform: translate(2px, -2px);
+          filter: hue-rotate(180deg);
+        }
+        75% {
+          transform: translate(-2px, -2px);
+        }
       }
     </style>
   </head>
@@ -713,7 +770,9 @@
             <span class="output">Show version</span><br />
             <span class="highlight">--help, -h</span>
             <span class="output">Show help</span><br />
-            <span class="highlight secret-flag" title="You found it!">--murder</span>
+            <span class="highlight secret-flag" title="You found it!"
+              >--murder</span
+            >
             <span class="output secret-flag" title="You found it!">???</span>
           </div>
         </div>
