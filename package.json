@@ -1,6 +1,6 @@
 {
   "name": "offmyport",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Interactive CLI tool to find and kill processes by port.",
   "type": "module",
   "scripts": {
