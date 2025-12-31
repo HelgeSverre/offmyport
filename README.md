@@ -34,7 +34,7 @@ npx offmyport
 git clone https://github.com/HelgeSverre/offmyport.git
 cd offmyport
 
-# Install dependencies and  make it accessible globally
+# Install dependencies and make it accessible globally
 bun install
 bun link
 

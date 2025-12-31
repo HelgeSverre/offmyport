@@ -56,3 +56,8 @@ ci-verbose:
 [group: 'ci']
 ci-list:
     act -l
+
+# Deploy website to Vercel (offmyport.dev)
+[group: 'release']
+deploy-web:
+    cd web && vc --prod

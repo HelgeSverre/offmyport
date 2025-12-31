@@ -1,0 +1,833 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>offmyport - Get Off My Port!</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔪</text></svg>"
+    />
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bangers&display=swap");
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg: #0a0a0a;
+        --text: #f0f0f0;
+        --accent: #ff6b6b;
+        --accent2: #4ecdc4;
+        --accent3: #ffe66d;
+      }
+
+      body {
+        font-family: "Space Mono", monospace;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        overflow-x: hidden;
+        cursor: crosshair;
+      }
+
+      .noise {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        opacity: 0.03;
+        z-index: 1000;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 2rem;
+        position: relative;
+      }
+
+      header {
+        text-align: center;
+        padding: 4rem 0;
+        position: relative;
+      }
+
+      .logo {
+        font-size: 8rem;
+        display: inline-block;
+        animation: stab 0.5s ease-in-out infinite;
+        filter: drop-shadow(0 0 20px rgba(255, 107, 107, 0.5));
+      }
+
+      @keyframes stab {
+        0%,
+        100% {
+          transform: rotate(-5deg) translateY(0);
+        }
+        50% {
+          transform: rotate(5deg) translateY(-10px);
+        }
+      }
+
+      h1 {
+        font-family: "Bangers", cursive;
+        font-size: clamp(3rem, 10vw, 6rem);
+        letter-spacing: 0.1em;
+        margin: 1rem 0;
+        background: linear-gradient(
+          135deg,
+          var(--accent),
+          var(--accent3),
+          var(--accent2)
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+        animation: glitch 3s infinite;
+      }
+
+      @keyframes glitch {
+        0%,
+        90%,
+        100% {
+          transform: translate(0);
+        }
+        92% {
+          transform: translate(-2px, 2px);
+        }
+        94% {
+          transform: translate(2px, -2px);
+        }
+        96% {
+          transform: translate(-2px, -2px);
+        }
+        98% {
+          transform: translate(2px, 2px);
+        }
+      }
+
+      .tagline {
+        font-size: 1.2rem;
+        color: var(--accent2);
+        margin-bottom: 2rem;
+        opacity: 0.9;
+      }
+
+      .tagline::before,
+      .tagline::after {
+        content: "~";
+        margin: 0 0.5rem;
+        color: var(--accent);
+      }
+
+      .warning-tape {
+        background: repeating-linear-gradient(
+          45deg,
+          var(--accent3),
+          var(--accent3) 20px,
+          #111 20px,
+          #111 40px
+        );
+        padding: 0.5rem;
+        margin: 2rem -2rem;
+        text-align: center;
+        font-weight: bold;
+        color: #000;
+        font-size: 0.8rem;
+        letter-spacing: 0.2em;
+        animation: slide 20s linear infinite;
+      }
+
+      @keyframes slide {
+        from {
+          background-position: 0 0;
+        }
+        to {
+          background-position: 100px 0;
+        }
+      }
+
+      section {
+        margin: 3rem 0;
+        padding: 2rem;
+        border: 2px dashed var(--accent);
+        position: relative;
+        background: rgba(255, 107, 107, 0.03);
+      }
+
+      section::before {
+        content: attr(data-label);
+        position: absolute;
+        top: -12px;
+        left: 20px;
+        background: var(--bg);
+        padding: 0 10px;
+        color: var(--accent3);
+        font-size: 0.9rem;
+        font-weight: bold;
+      }
+
+      h2 {
+        font-family: "Bangers", cursive;
+        font-size: 2rem;
+        color: var(--accent);
+        margin-bottom: 1rem;
+        letter-spacing: 0.05em;
+      }
+
+      .install-box {
+        background: #1a1a1a;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        position: relative;
+        border-left: 4px solid var(--accent2);
+      }
+
+      .install-box code {
+        font-size: 1.1rem;
+        color: var(--accent2);
+      }
+
+      .install-box .comment {
+        color: #666;
+        font-size: 0.9rem;
+      }
+
+      .copy-btn {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--accent);
+        border: none;
+        color: #000;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        font-family: inherit;
+        font-weight: bold;
+        transition: all 0.2s;
+      }
+
+      .copy-btn:hover {
+        background: var(--accent3);
+        transform: translateY(-50%) scale(1.05);
+      }
+
+      .copy-btn:active {
+        transform: translateY(-50%) scale(0.95);
+      }
+
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+      }
+
+      .feature {
+        background: #1a1a1a;
+        padding: 1.5rem;
+        border-radius: 4px;
+        text-align: center;
+        transition: all 0.3s;
+        border: 1px solid transparent;
+      }
+
+      .feature:hover {
+        border-color: var(--accent);
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(255, 107, 107, 0.2);
+      }
+
+      .feature-icon {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .feature h3 {
+        color: var(--accent2);
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .feature p {
+        font-size: 0.85rem;
+        opacity: 0.7;
+      }
+
+      .usage-example {
+        background: #1a1a1a;
+        border-radius: 8px;
+        overflow: hidden;
+        margin: 1rem 0;
+      }
+
+      .terminal-header {
+        background: #333;
+        padding: 0.5rem 1rem;
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      .terminal-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+
+      .terminal-dot.red {
+        background: #ff5f56;
+      }
+      .terminal-dot.yellow {
+        background: #ffbd2e;
+      }
+      .terminal-dot.green {
+        background: #27ca40;
+      }
+
+      .terminal-body {
+        padding: 1.5rem;
+        font-size: 0.95rem;
+        line-height: 1.8;
+      }
+
+      .terminal-body .prompt {
+        color: var(--accent2);
+      }
+
+      .terminal-body .command {
+        color: var(--text);
+      }
+
+      .terminal-body .output {
+        color: #888;
+        margin-left: 0;
+      }
+
+      .terminal-body .highlight {
+        color: var(--accent3);
+      }
+
+      .terminal-body .success {
+        color: #27ca40;
+      }
+
+      .marquee {
+        overflow: hidden;
+        white-space: nowrap;
+        margin: 2rem 0;
+      }
+
+      .marquee-content {
+        display: inline-block;
+        animation: marquee 15s linear infinite;
+        font-size: 1.5rem;
+      }
+
+      @keyframes marquee {
+        from {
+          transform: translateX(100%);
+        }
+        to {
+          transform: translateX(-100%);
+        }
+      }
+
+      .stats {
+        display: flex;
+        justify-content: center;
+        gap: 3rem;
+        margin: 2rem 0;
+        flex-wrap: wrap;
+      }
+
+      .stat {
+        text-align: center;
+      }
+
+      .stat-value {
+        font-family: "Bangers", cursive;
+        font-size: 3rem;
+        color: var(--accent);
+      }
+
+      .stat-label {
+        font-size: 0.8rem;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      footer {
+        text-align: center;
+        padding: 3rem 0;
+        border-top: 1px dashed #333;
+        margin-top: 4rem;
+      }
+
+      footer a {
+        color: var(--accent2);
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+
+      footer a:hover {
+        color: var(--accent);
+      }
+
+      .blink {
+        animation: blink 1s step-end infinite;
+      }
+
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+
+      .float {
+        animation: float 3s ease-in-out infinite;
+      }
+
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+      }
+
+      .blood-drip {
+        position: absolute;
+        width: 10px;
+        height: 30px;
+        background: linear-gradient(to bottom, var(--accent), transparent);
+        border-radius: 0 0 50% 50%;
+        animation: drip 2s ease-in infinite;
+        opacity: 0;
+      }
+
+      @keyframes drip {
+        0% {
+          transform: translateY(-20px);
+          opacity: 0;
+        }
+        20% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(100px);
+          opacity: 0;
+        }
+      }
+
+      .skull {
+        display: inline-block;
+        animation: shake 0.5s ease-in-out infinite;
+      }
+
+      @keyframes shake {
+        0%,
+        100% {
+          transform: rotate(0);
+        }
+        25% {
+          transform: rotate(-5deg);
+        }
+        75% {
+          transform: rotate(5deg);
+        }
+      }
+
+      .platforms {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        margin: 1.5rem 0;
+        flex-wrap: wrap;
+      }
+
+      .platform {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: #1a1a1a;
+        border-radius: 20px;
+        font-size: 0.9rem;
+      }
+
+      .platform-icon {
+        font-size: 1.2rem;
+      }
+
+      .ascii-art {
+        font-size: 0.6rem;
+        line-height: 1;
+        color: var(--accent);
+        text-align: center;
+        margin: 1rem 0;
+        opacity: 0.7;
+      }
+
+      @media (max-width: 600px) {
+        .logo {
+          font-size: 5rem;
+        }
+        section {
+          margin: 2rem -1rem;
+          padding: 1.5rem 1rem;
+        }
+        .stats {
+          gap: 1.5rem;
+        }
+        .stat-value {
+          font-size: 2rem;
+        }
+      }
+
+      .secret-flag {
+        opacity: 0.1;
+        filter: blur(3px);
+        cursor: help;
+        transition: all 0.3s;
+        user-select: none;
+      }
+
+      .secret-flag:hover {
+        opacity: 0.3;
+        filter: blur(2px);
+      }
+
+      .secret-flag.revealed {
+        opacity: 1 !important;
+        filter: none !important;
+        color: #ff0000 !important;
+        text-shadow: 0 0 10px #ff0000;
+        animation: pulse-blood 0.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse-blood {
+        0%, 100% { text-shadow: 0 0 10px #ff0000; }
+        50% { text-shadow: 0 0 20px #ff0000, 0 0 30px #ff0000; }
+      }
+
+      .murder-mode body {
+        animation: murder-shake 0.1s infinite;
+      }
+
+      @keyframes murder-shake {
+        0%, 100% { transform: translate(0); filter: hue-rotate(0deg); }
+        25% { transform: translate(-2px, 2px); }
+        50% { transform: translate(2px, -2px); filter: hue-rotate(180deg); }
+        75% { transform: translate(-2px, -2px); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="noise"></div>
+
+    <div class="container">
+      <header>
+        <div class="logo">🔪</div>
+        <h1>OFFMYPORT</h1>
+        <p class="tagline">Violently evict processes from your ports</p>
+
+        <div class="platforms">
+          <span class="platform"
+            ><span class="platform-icon"></span> macOS</span
+          >
+          <span class="platform"
+            ><span class="platform-icon">🐧</span> Linux</span
+          >
+          <span class="platform"
+            ><span class="platform-icon">🪟</span> Windows</span
+          >
+        </div>
+      </header>
+
+      <div class="warning-tape">
+        CAUTION: CONTAINS SHARP OBJECTS /// HANDLE WITH CARE /// MAY CAUSE
+        PROCESS TERMINATION ///
+      </div>
+
+      <section data-label="[ WHAT IS THIS? ]">
+        <h2><span class="skull">💀</span> THE PROBLEM</h2>
+        <p>
+          You're a developer. Port 3000 is haunted by a ghost process. You try
+          to remember the incantation...
+        </p>
+        <div class="usage-example" style="margin: 1rem 0">
+          <div class="terminal-body">
+            <span class="prompt">$</span>
+            <span class="command"
+              >lsof -i :3000 | grep LISTEN | awk '{print $2}' | xargs kill
+              -9</span
+            ><br />
+            <span class="output"
+              >// *stares blankly at screen* // *googles it for the 47th
+              time*</span
+            >
+          </div>
+        </div>
+        <h2 style="color: var(--accent2)">🔪 THE SOLUTION</h2>
+        <p>
+          Just type <code style="color: var(--accent3)">offmyport</code> and
+          stab that process right in its PID.
+        </p>
+      </section>
+
+      <section data-label="[ INSTALLATION ]">
+        <h2>Get The Weapon</h2>
+
+        <div class="install-box">
+          <span class="comment"># The blessed way (bun gang rise up)</span
+          ><br />
+          <code>bun install -g offmyport</code>
+          <button class="copy-btn" onclick="copy('bun install -g offmyport')">
+            COPY
+          </button>
+        </div>
+
+        <div class="install-box">
+          <span class="comment"># The npm way (we don't judge)</span><br />
+          <code>npm install -g offmyport</code>
+          <button class="copy-btn" onclick="copy('npm install -g offmyport')">
+            COPY
+          </button>
+        </div>
+
+        <div class="install-box">
+          <span class="comment"># Just wanna try it? Go wild</span><br />
+          <code>npx offmyport</code>
+          <button class="copy-btn" onclick="copy('npx offmyport')">COPY</button>
+        </div>
+      </section>
+
+      <section data-label="[ HOW TO STAB ]">
+        <h2>Usage Guide</h2>
+
+        <div class="usage-example">
+          <div class="terminal-header">
+            <div class="terminal-dot red"></div>
+            <div class="terminal-dot yellow"></div>
+            <div class="terminal-dot green"></div>
+          </div>
+          <div class="terminal-body">
+            <span class="comment"># List all ports, pick your victim</span
+            ><br />
+            <span class="prompt">$</span> <span class="command">offmyport</span
+            ><br /><br />
+
+            <span class="comment"># Target a specific port</span><br />
+            <span class="prompt">$</span>
+            <span class="command">offmyport 3000</span><br /><br />
+
+            <span class="comment"># Mass murder (multiple ports)</span><br />
+            <span class="prompt">$</span>
+            <span class="command">offmyport 80,443,8080</span><br /><br />
+
+            <span class="comment"># Rampage mode (port range)</span><br />
+            <span class="prompt">$</span>
+            <span class="command">offmyport 3000-3010</span><br /><br />
+
+            <span class="comment"># Skip the pleasantries, just kill</span
+            ><br />
+            <span class="prompt">$</span>
+            <span class="command">offmyport 3000 --kill --force</span><br />
+            <span class="success"
+              >Sent SIGKILL to PID 12345 (node on port 3000)</span
+            ><br />
+            <span class="output">// rest in peace, little process</span>
+          </div>
+        </div>
+      </section>
+
+      <section data-label="[ FEATURES ]">
+        <h2>Arsenal</h2>
+        <div class="feature-grid">
+          <div class="feature">
+            <div class="feature-icon">🎯</div>
+            <h3>Interactive TUI</h3>
+            <p>
+              Arrow keys to pick, enter to execute. No memorization required.
+            </p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">⚡</div>
+            <h3>Lightning Fast</h3>
+            <p>Built with Bun. Faster than your processes can run away.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">🎭</div>
+            <h3>Choose Your Violence</h3>
+            <p>SIGTERM for the merciful. SIGKILL for the ruthless.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">📋</div>
+            <h3>JSON Output</h3>
+            <p>For when you need to pipe the carnage elsewhere.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">🔥</div>
+            <h3>Batch Mode</h3>
+            <p>--kill --force for scripting your chaos.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">🌍</div>
+            <h3>Cross-Platform</h3>
+            <p>Stab processes on macOS, Linux, or Windows.</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="marquee">
+        <div class="marquee-content">
+          🔪 NO MORE GOOGLING LSOF 🔪 NO MORE NETSTAT 🔪 NO MORE CRYING 🔪 JUST
+          PURE PORT LIBERATION 🔪
+        </div>
+      </div>
+
+      <section data-label="[ CLI FLAGS ]">
+        <h2>Cheat Sheet</h2>
+        <div class="usage-example">
+          <div class="terminal-body" style="font-size: 0.9rem">
+            <span class="highlight">--json</span>
+            <span class="output">Output as JSON (for scripting)</span><br />
+            <span class="highlight">--kill, -k</span>
+            <span class="output">Non-interactive kill mode</span><br />
+            <span class="highlight">--force, -f</span>
+            <span class="output">Skip confirmation (dangerous!)</span><br />
+            <span class="highlight">--version, -v</span>
+            <span class="output">Show version</span><br />
+            <span class="highlight">--help, -h</span>
+            <span class="output">Show help</span><br />
+            <span class="highlight secret-flag" title="You found it!">--murder</span>
+            <span class="output secret-flag" title="You found it!">???</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value">0</div>
+          <div class="stat-label">lsof flags memorized</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">∞</div>
+          <div class="stat-label">processes terminated</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">100%</div>
+          <div class="stat-label">port liberation rate</div>
+        </div>
+      </div>
+
+      <pre class="ascii-art">
+    ___________
+   /           \
+  /  GET OFF    \
+ |   MY PORT!   |
+  \   🔪🔪🔪   /
+   \___________/
+        </pre
+      >
+
+      <footer>
+        <p>
+          Made with
+          <span style="color: var(--accent)">blood, sweat & rage</span> by
+          <a href="https://github.com/HelgeSverre">@HelgeSverre</a>
+        </p>
+        <p style="margin-top: 1rem; font-size: 0.8rem; opacity: 0.6">
+          <a href="https://github.com/HelgeSverre/offmyport">GitHub</a> ·
+          <a href="https://www.npmjs.com/package/offmyport">npm</a> · MIT
+          License
+        </p>
+        <p style="margin-top: 1rem; font-size: 0.7rem; opacity: 0.4">
+          No processes were harmed in the making of this website<span
+            class="blink"
+            >_</span
+          >
+        </p>
+      </footer>
+    </div>
+
+    <script>
+      function copy(text) {
+        navigator.clipboard.writeText(text);
+        event.target.textContent = "COPIED!";
+        setTimeout(() => (event.target.textContent = "COPY"), 1500);
+      }
+
+      // Random blood drips from the knife
+      const header = document.querySelector("header");
+      setInterval(() => {
+        if (Math.random() > 0.7) {
+          const drip = document.createElement("div");
+          drip.className = "blood-drip";
+          drip.style.left = `${50 + (Math.random() - 0.5) * 100}px`;
+          drip.style.top = "150px";
+          header.appendChild(drip);
+          setTimeout(() => drip.remove(), 2000);
+        }
+      }, 500);
+
+      // Konami code easter egg
+      let keys = [];
+      const konami = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65];
+      document.addEventListener("keydown", (e) => {
+        keys.push(e.keyCode);
+        keys = keys.slice(-10);
+        if (keys.join(",") === konami.join(",")) {
+          document.body.style.animation = "glitch 0.1s infinite";
+          setTimeout(() => (document.body.style.animation = ""), 2000);
+        }
+      });
+
+      // Secret --murder flag easter egg
+      let murderClicks = 0;
+      document.querySelectorAll(".secret-flag").forEach((el) => {
+        el.addEventListener("click", () => {
+          murderClicks++;
+          if (murderClicks >= 5) {
+            document.querySelectorAll(".secret-flag").forEach((flag) => {
+              flag.classList.add("revealed");
+            });
+            document.documentElement.classList.add("murder-mode");
+            document.querySelector(".logo").textContent = "🩸";
+
+            // Spawn many blood drips
+            for (let i = 0; i < 20; i++) {
+              setTimeout(() => {
+                const drip = document.createElement("div");
+                drip.className = "blood-drip";
+                drip.style.left = `${Math.random() * window.innerWidth}px`;
+                drip.style.top = "0px";
+                drip.style.position = "fixed";
+                document.body.appendChild(drip);
+                setTimeout(() => drip.remove(), 2000);
+              }, i * 100);
+            }
+
+            setTimeout(() => {
+              document.documentElement.classList.remove("murder-mode");
+              document.querySelector(".logo").textContent = "🔪";
+            }, 3000);
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
