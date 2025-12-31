@@ -259,7 +259,7 @@ Get-WmiObject Win32_Process -Filter "ProcessId = PID"
 
 - [x] Tests for `parseArgs()` function (port parsing, all flags)
 - [x] Tests for `parsePorts()` function (single, ranges, mixed, edge cases, errors)
-- [x] Test file: `src/index.test.ts` (343 lines, 53 tests)
+- [x] Test file: `src/index.test.ts` (61 tests)
 - [x] Uses Vitest with mocking for `process.exit` and `console.error`
 
 ### Task 6.2: Manual Testing (macOS) ✅
@@ -310,8 +310,8 @@ Phase 5 (Cross-Platform)    ✅ ───┘
 **Status Summary:**
 
 - ✅ ALL PHASES COMPLETE
-- Version: 1.1.0
-- 53 unit tests passing
+- Version: 1.2.0
+- 61 unit tests passing
 
 ---
 
