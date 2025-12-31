@@ -26,13 +26,14 @@ const helpText = `
     --help        Show this help
 
   Examples
-    $ offmyport              List all listening ports
-    $ offmyport 3000         Filter to port 3000
-    $ offmyport 80,443       Filter multiple ports
-    $ offmyport 3000-3005    Filter port range
-    $ offmyport 3000 --kill  Kill process on port 3000
-    $ offmyport 3000 -k -f   Kill without confirmation
-    $ offmyport --json       Output all ports as JSON
+    $ offmyport                   List all listening ports
+    $ offmyport 3000              Filter to port 3000
+    $ offmyport 80,443            Filter multiple ports
+    $ offmyport 3000-3005         Filter port range
+    $ offmyport 80,443,3000-3005  Mix ports and ranges
+    $ offmyport 3000 --kill       Kill process on port 3000
+    $ offmyport 3000 -k -f        Kill without confirmation
+    $ offmyport --json            Output all ports as JSON
 `;
 
 /**
@@ -89,7 +90,7 @@ export function parseArgs(argv: string[]): CliFlags {
 }
 
 // Calculate page size as half the terminal height (min 5, max 20)
-function getPageSize(): number {
+export function getPageSize(): number {
   const rows = process.stdout.rows || 24;
   return Math.min(20, Math.max(5, Math.floor(rows / 2)));
 }
@@ -98,7 +99,7 @@ function getPageSize(): number {
  * Setup keyboard listener for 'q' to quit.
  * Returns cleanup function and AbortController for cancelling prompts.
  */
-function setupQuitHandler(): {
+export function setupQuitHandler(): {
   cleanup: () => void;
   controller: AbortController;
 } {
@@ -162,13 +163,15 @@ export function parsePorts(input: string): number[] {
       const rangeParts = segment.split("-").map((s) => s.trim());
       const startStr = rangeParts[0] ?? "";
       const endStr = rangeParts[1] ?? "";
-      const start = parseInt(startStr, 10);
-      const end = parseInt(endStr, 10);
 
-      if (isNaN(start) || isNaN(end)) {
+      // Validate range parts contain only digits
+      if (!/^\d+$/.test(startStr) || !/^\d+$/.test(endStr)) {
         console.error(`Invalid port range: ${segment}`);
         process.exit(1);
       }
+
+      const start = parseInt(startStr, 10);
+      const end = parseInt(endStr, 10);
 
       if (start > end) {
         console.error(`Invalid port range (start > end): ${segment}`);
@@ -184,12 +187,13 @@ export function parsePorts(input: string): number[] {
         ports.push(p);
       }
     } else {
-      const port = parseInt(segment, 10);
-
-      if (isNaN(port)) {
+      // Validate segment contains only digits (reject decimals, letters, etc.)
+      if (!/^\d+$/.test(segment)) {
         console.error(`Invalid port number: ${segment}`);
         process.exit(1);
       }
+
+      const port = parseInt(segment, 10);
 
       if (port < 1 || port > 65535) {
         console.error(`Port out of range (1-65535): ${port}`);
@@ -217,7 +221,7 @@ function getPlatformAdapter() {
 /**
  * Convert ProcessInfo to ProcessJsonOutput with extended metadata.
  */
-function toJsonOutput(p: ProcessInfo): ProcessJsonOutput {
+export function toJsonOutput(p: ProcessInfo): ProcessJsonOutput {
   const platform = getPlatformAdapter();
   const meta = platform.getProcessMetadata(p.pid);
   return {
@@ -355,7 +359,7 @@ async function main() {
 /**
  * Handle --kill mode: kill all matching processes with optional confirmation.
  */
-async function handleKillMode(
+export async function handleKillMode(
   processes: ProcessInfo[],
   force: boolean,
   murder: boolean,
