@@ -4,7 +4,11 @@ import { select, confirm } from "@inquirer/prompts";
 import { ExitPromptError } from "@inquirer/core";
 import * as readline from "readline";
 import meow from "meow";
-import { getAdapter, type ProcessInfo } from "./platform/index.js";
+import {
+  getAdapter,
+  type ProcessInfo,
+  type ProcessMetadata,
+} from "./platform/index.js";
 
 export interface CliFlags {
   ports: string | null;
@@ -208,6 +212,67 @@ export function parsePorts(input: string): number[] {
   return [...new Set(ports)].sort((a, b) => a - b);
 }
 
+/**
+ * Format bytes to human-readable string (e.g., "52.4 MB").
+ */
+function formatBytes(bytes: number | null): string {
+  if (bytes === null) return "n/a";
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex++;
+  }
+  return `${value.toFixed(1)} ${units[unitIndex]}`;
+}
+
+/**
+ * Format process metadata as description text for @inquirer/select.
+ */
+function formatProcessDescription(meta: ProcessMetadata): string {
+  const lines: string[] = [];
+
+  if (meta.path) lines.push(`Path: ${meta.path}`);
+  if (meta.cwd) lines.push(`CWD:  ${meta.cwd}`);
+  if (meta.cpuPercent !== null) lines.push(`CPU:  ${meta.cpuPercent.toFixed(1)}%`);
+  if (meta.memoryBytes !== null) lines.push(`Mem:  ${formatBytes(meta.memoryBytes)}`);
+  if (meta.startTime) {
+    const date = new Date(meta.startTime);
+    const formatted = isNaN(date.getTime()) ? meta.startTime : date.toLocaleString();
+    lines.push(`Started: ${formatted}`);
+  }
+
+  return lines.length > 0 ? lines.join("\n") : "No additional info available";
+}
+
+/**
+ * Generate table header for process list.
+ */
+function getTableHeader(): string {
+  return `  ${"Port".padEnd(7)}│ ${"Command".padEnd(16)}│ ${"PID".padEnd(8)}│ ${"User".padEnd(11)}│ CWD`;
+}
+
+/**
+ * Format a single process row for display.
+ */
+function formatProcessRow(p: ProcessInfo, cwd: string | null): string {
+  const cwdDisplay = cwd ?? "(n/a)";
+  return `Port ${p.port.toString().padStart(5)} │ ${p.command.padEnd(15)} │ PID ${p.pid.toString().padEnd(6)} │ ${p.user.padEnd(10)} │ ${cwdDisplay}`;
+}
+
+/**
+ * Fetch metadata for all processes.
+ */
+function fetchAllMetadata(processes: ProcessInfo[]): Map<number, ProcessMetadata> {
+  const platform = getPlatformAdapter();
+  const metadataMap = new Map<number, ProcessMetadata>();
+  for (const p of processes) {
+    metadataMap.set(p.pid, platform.getProcessMetadata(p.pid));
+  }
+  return metadataMap;
+}
+
 // Platform adapter instance (lazy initialized)
 let adapter: ReturnType<typeof getAdapter> | null = null;
 
@@ -280,9 +345,14 @@ async function main() {
   }
 
   // Interactive mode
+
+  // Fetch metadata for all processes upfront
+  const metadataMap = fetchAllMetadata(processes);
+
   console.log(
     `\nFound ${processes.length} listening process${processes.length > 1 ? "es" : ""} \x1b[2m(q to quit)\x1b[0m\n`,
   );
+  console.log(`\x1b[2m${getTableHeader()}\x1b[0m`);
 
   const pageSize = getPageSize();
   const { cleanup, controller } = setupQuitHandler();
@@ -296,10 +366,14 @@ async function main() {
       {
         message: "Select a process to kill:",
         pageSize,
-        choices: processes.map((p) => ({
-          name: `Port ${p.port.toString().padStart(5)} │ ${p.command.padEnd(15)} │ PID ${p.pid} │ ${p.user}`,
-          value: p.pid,
-        })),
+        choices: processes.map((p) => {
+          const meta = metadataMap.get(p.pid)!;
+          return {
+            name: formatProcessRow(p, meta.cwd),
+            value: p.pid,
+            description: formatProcessDescription(meta),
+          };
+        }),
       },
       { signal: controller.signal },
     );
@@ -369,11 +443,13 @@ export async function handleKillMode(
   const platform = getPlatformAdapter();
 
   // Display what will be killed
+  const metadataMap = fetchAllMetadata(processes);
+
   console.log(`\nProcesses to kill (${processes.length}):\n`);
+  console.log(`\x1b[2m${getTableHeader()}\x1b[0m`);
   for (const p of processes) {
-    console.log(
-      `  Port ${p.port.toString().padStart(5)} │ ${p.command.padEnd(15)} │ PID ${p.pid} │ ${p.user}`,
-    );
+    const meta = metadataMap.get(p.pid)!;
+    console.log(`  ${formatProcessRow(p, meta.cwd)}`);
   }
   console.log();
 
