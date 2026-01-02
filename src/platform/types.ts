@@ -36,6 +36,12 @@ export interface PlatformAdapter {
   getProcessMetadata(pid: number): ProcessMetadata;
 
   /**
+   * Get extended metadata for multiple processes in a single batch call.
+   * More efficient than calling getProcessMetadata for each PID.
+   */
+  getProcessMetadataBatch(pids: number[]): Map<number, ProcessMetadata>;
+
+  /**
    * Kill a process with the specified signal.
    */
   killProcess(pid: number, signal: "SIGTERM" | "SIGKILL"): void;

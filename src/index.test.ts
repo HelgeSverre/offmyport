@@ -483,9 +483,11 @@ describe("setupQuitHandler", () => {
 
 describe("toJsonOutput", () => {
   const mockGetProcessMetadata = vi.fn();
+  const mockGetProcessMetadataBatch = vi.fn(() => new Map());
   const mockAdapter = {
     getListeningProcesses: vi.fn(),
     getProcessMetadata: mockGetProcessMetadata,
+    getProcessMetadataBatch: mockGetProcessMetadataBatch,
     killProcess: vi.fn(),
   };
 
@@ -560,6 +562,14 @@ describe("handleKillMode", () => {
 
   const mockGetProcessMetadata = () => createMockMetadata();
 
+  const mockGetProcessMetadataBatch = (pids: number[]) => {
+    const map = new Map();
+    for (const pid of pids) {
+      map.set(pid, createMockMetadata());
+    }
+    return map;
+  };
+
   beforeEach(async () => {
     mockExit = vi.spyOn(process, "exit").mockImplementation((code) => {
       throw new Error(`process.exit(${code})`);
@@ -573,6 +583,7 @@ describe("handleKillMode", () => {
       getAdapter: () => ({
         getListeningProcesses: vi.fn(),
         getProcessMetadata: mockGetProcessMetadata,
+        getProcessMetadataBatch: mockGetProcessMetadataBatch,
         killProcess: mockKillProcess,
       }),
     }));
@@ -592,6 +603,7 @@ describe("handleKillMode", () => {
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
           getProcessMetadata: mockGetProcessMetadata,
+          getProcessMetadataBatch: mockGetProcessMetadataBatch,
           killProcess: mockKillProcess,
         }),
       }));
@@ -614,6 +626,7 @@ describe("handleKillMode", () => {
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
           getProcessMetadata: mockGetProcessMetadata,
+          getProcessMetadataBatch: mockGetProcessMetadataBatch,
           killProcess: mockKillProcess,
         }),
       }));
@@ -642,6 +655,7 @@ describe("handleKillMode", () => {
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
           getProcessMetadata: mockGetProcessMetadata,
+          getProcessMetadataBatch: mockGetProcessMetadataBatch,
           killProcess: mockKillProcess,
         }),
       }));
@@ -661,6 +675,7 @@ describe("handleKillMode", () => {
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
           getProcessMetadata: mockGetProcessMetadata,
+          getProcessMetadataBatch: mockGetProcessMetadataBatch,
           killProcess: mockKillProcess,
         }),
       }));
@@ -692,6 +707,7 @@ describe("handleKillMode", () => {
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
           getProcessMetadata: mockGetProcessMetadata,
+          getProcessMetadataBatch: mockGetProcessMetadataBatch,
           killProcess: mockKillProcess,
         }),
       }));
@@ -722,6 +738,7 @@ describe("handleKillMode", () => {
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
           getProcessMetadata: mockGetProcessMetadata,
+          getProcessMetadataBatch: mockGetProcessMetadataBatch,
           killProcess: mockKillProcess,
         }),
       }));
@@ -748,6 +765,7 @@ describe("handleKillMode", () => {
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
           getProcessMetadata: mockGetProcessMetadata,
+          getProcessMetadataBatch: mockGetProcessMetadataBatch,
           killProcess: mockKillProcess,
         }),
       }));
@@ -780,6 +798,7 @@ describe("handleKillMode", () => {
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
           getProcessMetadata: mockGetProcessMetadata,
+          getProcessMetadataBatch: mockGetProcessMetadataBatch,
           killProcess: mockKillProcess,
         }),
       }));
@@ -813,6 +832,7 @@ describe("handleKillMode", () => {
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
           getProcessMetadata: mockGetProcessMetadata,
+          getProcessMetadataBatch: mockGetProcessMetadataBatch,
           killProcess: mockKillProcess,
         }),
       }));
@@ -842,6 +862,7 @@ describe("handleKillMode", () => {
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
           getProcessMetadata: mockGetProcessMetadata,
+          getProcessMetadataBatch: mockGetProcessMetadataBatch,
           killProcess: mockKillProcess,
         }),
       }));

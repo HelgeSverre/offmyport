@@ -262,14 +262,24 @@ function formatProcessRow(p: ProcessInfo, cwd: string | null): string {
 }
 
 /**
- * Fetch metadata for all processes.
+ * Fetch metadata for all processes using batch call for performance.
  */
 function fetchAllMetadata(processes: ProcessInfo[]): Map<number, ProcessMetadata> {
   const platform = getPlatformAdapter();
-  const metadataMap = new Map<number, ProcessMetadata>();
-  for (const p of processes) {
-    metadataMap.set(p.pid, platform.getProcessMetadata(p.pid));
+  const pids = processes.map((p) => p.pid);
+
+  // Show loading indicator for long lists
+  if (pids.length > 5) {
+    process.stdout.write(`\x1b[2mLoading process details...\x1b[0m`);
   }
+
+  const metadataMap = platform.getProcessMetadataBatch(pids);
+
+  // Clear loading indicator
+  if (pids.length > 5) {
+    process.stdout.write(`\r\x1b[K`);
+  }
+
   return metadataMap;
 }
 

@@ -291,6 +291,177 @@ export class UnixAdapter implements PlatformAdapter {
   }
 
   /**
+   * Get extended metadata for multiple processes in a batch.
+   * Much faster than calling getProcessMetadata for each PID individually.
+   */
+  getProcessMetadataBatch(pids: number[]): Map<number, ProcessMetadata> {
+    const metadataMap = new Map<number, ProcessMetadata>();
+
+    if (pids.length === 0) return metadataMap;
+
+    // Initialize with defaults
+    for (const pid of pids) {
+      metadataMap.set(pid, {
+        cpuPercent: null,
+        memoryBytes: null,
+        startTime: null,
+        path: null,
+        cwd: null,
+      });
+    }
+
+    // Batch ps call: ps -p PID1,PID2,... -o pid=,%cpu=,rss=,lstart=,args=
+    try {
+      const proc = Bun.spawnSync([
+        "ps",
+        "-p",
+        pids.join(","),
+        "-o",
+        "pid=,%cpu=,rss=,lstart=,args=",
+      ]);
+
+      if (proc.exitCode === 0) {
+        const output = proc.stdout.toString().trim();
+        for (const line of output.split("\n")) {
+          if (!line.trim()) continue;
+
+          const parsed = this.parsePsOutputLine(line);
+          if (parsed) {
+            const existing = metadataMap.get(parsed.pid);
+            if (existing) {
+              existing.cpuPercent = parsed.cpuPercent;
+              existing.memoryBytes = parsed.memoryBytes;
+              existing.startTime = parsed.startTime;
+              existing.path = parsed.path;
+            }
+          }
+        }
+      }
+    } catch {
+      // Ignore ps errors
+    }
+
+    // Batch CWD lookup using lsof
+    this.batchGetProcessCwd(pids, metadataMap);
+
+    return metadataMap;
+  }
+
+  /**
+   * Parse a single line of ps output.
+   * Format: "PID %CPU RSS lstart args"
+   */
+  private parsePsOutputLine(line: string): {
+    pid: number;
+    cpuPercent: number | null;
+    memoryBytes: number | null;
+    startTime: string | null;
+    path: string | null;
+  } | null {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 8) return null;
+
+    const pid = parseInt(parts[0] ?? "", 10);
+    if (isNaN(pid)) return null;
+
+    const cpuStr = (parts[1] ?? "").replace(",", ".");
+    const rssStr = parts[2] ?? "";
+
+    const cpuParsed = parseFloat(cpuStr);
+    const cpuPercent = isNaN(cpuParsed) ? null : cpuParsed;
+    const rssKb = parseInt(rssStr, 10) || null;
+
+    // Find the path - it's after the year (4 digits) and multiple spaces
+    const yearMatch = line.match(/\d{4}\s{2,}(.+)$/);
+    const path = yearMatch?.[1]?.trim() ?? null;
+
+    // Extract start time - parts[3..7] is typically: Day Mon DD HH:MM:SS YYYY
+    let startTime: string | null = null;
+    if (parts.length >= 8) {
+      const dateStr = parts.slice(3, 8).join(" ");
+      try {
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+          startTime = date.toISOString();
+        } else {
+          startTime = dateStr;
+        }
+      } catch {
+        startTime = dateStr;
+      }
+    }
+
+    return {
+      pid,
+      cpuPercent,
+      memoryBytes: rssKb ? rssKb * 1024 : null,
+      startTime,
+      path,
+    };
+  }
+
+  /**
+   * Batch fetch CWD for multiple processes and update the metadata map.
+   */
+  private batchGetProcessCwd(
+    pids: number[],
+    metadataMap: Map<number, ProcessMetadata>,
+  ): void {
+    // Try lsof first with all PIDs
+    try {
+      // Build args: lsof -d cwd -a -p PID1 -p PID2 ... -Fn
+      const args = ["lsof", "-d", "cwd", "-Fn"];
+      for (const pid of pids) {
+        args.push("-a", "-p", String(pid));
+      }
+
+      // Actually, lsof doesn't work well with multiple -p flags combined with -a
+      // Use a different approach: lsof -d cwd -Fn and filter by known PIDs
+      const proc = Bun.spawnSync(["lsof", "-d", "cwd", "-Fn"]);
+
+      if (proc.exitCode === 0) {
+        const output = proc.stdout.toString();
+        const pidSet = new Set(pids);
+        let currentPid: number | null = null;
+
+        for (const line of output.split("\n")) {
+          if (line.startsWith("p")) {
+            currentPid = parseInt(line.slice(1), 10);
+            // Only track PIDs we care about
+            if (!pidSet.has(currentPid)) {
+              currentPid = null;
+            }
+          } else if (line.startsWith("n") && currentPid !== null) {
+            const existing = metadataMap.get(currentPid);
+            if (existing) {
+              existing.cwd = line.slice(1);
+            }
+            currentPid = null; // Reset after getting cwd
+          }
+        }
+      }
+    } catch {
+      // Ignore lsof errors
+    }
+
+    // Fallback for any missing CWDs on Linux: try /proc
+    for (const pid of pids) {
+      const existing = metadataMap.get(pid);
+      if (existing && existing.cwd === null) {
+        try {
+          const proc = Bun.spawnSync(["readlink", `/proc/${pid}/cwd`]);
+          if (proc.exitCode === 0) {
+            const cwd = proc.stdout.toString().trim();
+            if (cwd) existing.cwd = cwd;
+          }
+        } catch {
+          // Ignore
+        }
+      }
+    }
+  }
+
+  /**
    * Get the current working directory of a process.
    * Tries lsof first, falls back to /proc on Linux.
    */

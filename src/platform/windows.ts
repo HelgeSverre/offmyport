@@ -112,6 +112,81 @@ export class WindowsAdapter implements PlatformAdapter {
   }
 
   /**
+   * Get extended metadata for multiple processes in a batch.
+   * Much faster than calling getProcessMetadata for each PID individually.
+   */
+  getProcessMetadataBatch(pids: number[]): Map<number, ProcessMetadata> {
+    const metadataMap = new Map<number, ProcessMetadata>();
+
+    if (pids.length === 0) return metadataMap;
+
+    // Initialize with defaults
+    for (const pid of pids) {
+      metadataMap.set(pid, this.emptyMetadata());
+    }
+
+    // PowerShell script to get metadata for all PIDs at once
+    const pidsArray = pids.join(",");
+    const script = `
+      $pids = @(${pidsArray})
+      $results = @()
+      foreach ($pid in $pids) {
+        $p = Get-Process -Id $pid -ErrorAction SilentlyContinue
+        if ($p) {
+          $wmi = Get-WmiObject Win32_Process -Filter "ProcessId = $pid" -ErrorAction SilentlyContinue
+          $results += [PSCustomObject]@{
+            PID = $pid
+            CPU = $p.CPU
+            Memory = $p.WorkingSet64
+            StartTime = if ($p.StartTime) { $p.StartTime.ToString("o") } else { $null }
+            Path = $p.Path
+            Cwd = if ($wmi) { Split-Path -Parent $wmi.ExecutablePath -ErrorAction SilentlyContinue } else { $null }
+          }
+        }
+      }
+      $results | ConvertTo-Json -Compress
+    `;
+
+    try {
+      const proc = Bun.spawnSync([
+        "powershell",
+        "-NoProfile",
+        "-Command",
+        script,
+      ]);
+
+      if (proc.exitCode !== 0) {
+        return metadataMap;
+      }
+
+      const output = proc.stdout.toString().trim();
+      if (!output || output === "null" || output === "[]") {
+        return metadataMap;
+      }
+
+      const data = JSON.parse(output);
+      // PowerShell returns single object (not array) when only one result
+      const items = Array.isArray(data) ? data : [data];
+
+      for (const item of items) {
+        const existing = metadataMap.get(item.PID);
+        if (existing) {
+          existing.cpuPercent = typeof item.CPU === "number" ? item.CPU : null;
+          existing.memoryBytes =
+            typeof item.Memory === "number" ? item.Memory : null;
+          existing.startTime = item.StartTime ?? null;
+          existing.path = item.Path ?? null;
+          existing.cwd = item.Cwd ?? null;
+        }
+      }
+    } catch {
+      // Return what we have
+    }
+
+    return metadataMap;
+  }
+
+  /**
    * Return empty metadata object.
    */
   private emptyMetadata(): ProcessMetadata {
