@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-01-02
+
+### Added
+
+- Process metadata display in interactive mode with table headers
+- CWD column showing current working directory for each process
+- Extended details panel below list showing path, cwd, cpu, memory, start time
+- Batch metadata fetching for ~50x faster loading on long process lists
+- Loading indicator ("Loading process details...") for lists with >5 processes
+
+### Changed
+
+- Metadata is now fetched with batch system calls (2 calls instead of 2N)
+
 ## [1.3.0] - 2025-12-31
 
 ### Added
