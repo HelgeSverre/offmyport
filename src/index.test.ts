@@ -539,6 +539,27 @@ describe("handleKillMode", () => {
   let mockConsoleError: ReturnType<typeof vi.spyOn>;
   let mockKillProcess: ReturnType<typeof vi.fn>;
 
+  const createProcess = (
+    overrides: Partial<ProcessInfo> = {},
+  ): ProcessInfo => ({
+    pid: 12345,
+    command: "node",
+    port: 3000,
+    protocol: "TCP",
+    user: "testuser",
+    ...overrides,
+  });
+
+  const createMockMetadata = () => ({
+    cpuPercent: 1.0,
+    memoryBytes: 1024 * 1024,
+    startTime: "2025-01-01T00:00:00.000Z",
+    path: "/usr/bin/node",
+    cwd: "/home/testuser/project",
+  });
+
+  const mockGetProcessMetadata = () => createMockMetadata();
+
   beforeEach(async () => {
     mockExit = vi.spyOn(process, "exit").mockImplementation((code) => {
       throw new Error(`process.exit(${code})`);
@@ -551,7 +572,7 @@ describe("handleKillMode", () => {
     vi.doMock("./platform/index.js", () => ({
       getAdapter: () => ({
         getListeningProcesses: vi.fn(),
-        getProcessMetadata: vi.fn(),
+        getProcessMetadata: mockGetProcessMetadata,
         killProcess: mockKillProcess,
       }),
     }));
@@ -564,24 +585,13 @@ describe("handleKillMode", () => {
     vi.resetModules();
   });
 
-  const createProcess = (
-    overrides: Partial<ProcessInfo> = {},
-  ): ProcessInfo => ({
-    pid: 12345,
-    command: "node",
-    port: 3000,
-    protocol: "TCP",
-    user: "testuser",
-    ...overrides,
-  });
-
   describe("with --force flag", () => {
     it("kills processes without confirmation", async () => {
       vi.resetModules();
       vi.doMock("./platform/index.js", () => ({
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
-          getProcessMetadata: vi.fn(),
+          getProcessMetadata: mockGetProcessMetadata,
           killProcess: mockKillProcess,
         }),
       }));
@@ -603,7 +613,7 @@ describe("handleKillMode", () => {
       vi.doMock("./platform/index.js", () => ({
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
-          getProcessMetadata: vi.fn(),
+          getProcessMetadata: mockGetProcessMetadata,
           killProcess: mockKillProcess,
         }),
       }));
@@ -631,7 +641,7 @@ describe("handleKillMode", () => {
       vi.doMock("./platform/index.js", () => ({
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
-          getProcessMetadata: vi.fn(),
+          getProcessMetadata: mockGetProcessMetadata,
           killProcess: mockKillProcess,
         }),
       }));
@@ -650,7 +660,7 @@ describe("handleKillMode", () => {
       vi.doMock("./platform/index.js", () => ({
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
-          getProcessMetadata: vi.fn(),
+          getProcessMetadata: mockGetProcessMetadata,
           killProcess: mockKillProcess,
         }),
       }));
@@ -681,7 +691,7 @@ describe("handleKillMode", () => {
       vi.doMock("./platform/index.js", () => ({
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
-          getProcessMetadata: vi.fn(),
+          getProcessMetadata: mockGetProcessMetadata,
           killProcess: mockKillProcess,
         }),
       }));
@@ -711,7 +721,7 @@ describe("handleKillMode", () => {
       vi.doMock("./platform/index.js", () => ({
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
-          getProcessMetadata: vi.fn(),
+          getProcessMetadata: mockGetProcessMetadata,
           killProcess: mockKillProcess,
         }),
       }));
@@ -737,7 +747,7 @@ describe("handleKillMode", () => {
       vi.doMock("./platform/index.js", () => ({
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
-          getProcessMetadata: vi.fn(),
+          getProcessMetadata: mockGetProcessMetadata,
           killProcess: mockKillProcess,
         }),
       }));
@@ -769,7 +779,7 @@ describe("handleKillMode", () => {
       vi.doMock("./platform/index.js", () => ({
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
-          getProcessMetadata: vi.fn(),
+          getProcessMetadata: mockGetProcessMetadata,
           killProcess: mockKillProcess,
         }),
       }));
@@ -802,7 +812,7 @@ describe("handleKillMode", () => {
       vi.doMock("./platform/index.js", () => ({
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
-          getProcessMetadata: vi.fn(),
+          getProcessMetadata: mockGetProcessMetadata,
           killProcess: mockKillProcess,
         }),
       }));
@@ -831,7 +841,7 @@ describe("handleKillMode", () => {
       vi.doMock("./platform/index.js", () => ({
         getAdapter: () => ({
           getListeningProcesses: vi.fn(),
-          getProcessMetadata: vi.fn(),
+          getProcessMetadata: mockGetProcessMetadata,
           killProcess: mockKillProcess,
         }),
       }));
